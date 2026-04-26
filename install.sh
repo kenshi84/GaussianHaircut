@@ -38,6 +38,12 @@ cd $PROJECT_DIR/ext && git clone https://github.com/SSL92/hyperIQA
 # Install environment
 cd $PROJECT_DIR && conda env create -f environment.yml
 conda activate gaussian_splatting_hair
+pip install ext/pytorch3d
+pip install torch-scatter -f https://data.pyg.org/whl/torch-2.1.1+cu118.html
+pip install ext/NeuralHaircut/npbgpp
+pip install ext/simple-knn
+pip install ext/diff_gaussian_rasterization_hair
+pip install kaolin==0.15.0 -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.1.1_cu118.html
 
 # Download Neural Haircut files
 cd $PROJECT_DIR/ext/NeuralHaircut
@@ -51,14 +57,16 @@ gdown 1OOUmnbvpGea0LIGpIWEbOyxfWx6UCiiE
 cd $PROJECT_DIR
 
 # Matte-Anything
-conda create -y -n matte_anything \
-    pytorch=2.0.0 pytorch-cuda=11.8 torchvision tensorboard timm=0.5.4 opencv=4.5.3 \
-    mkl=2024.0 setuptools=58.2.0 easydict wget scikit-image gradio=3.46.1 fairscale \
-    -c pytorch -c nvidia -c conda-forge # this worked better than the official installation config
-conda deactivate && conda activate matte_anything
+conda create -y -n matte_anything python=3.9 pip=23.3.1
+conda activate matte_anything
+conda install -y --strict-channel-priority pytorch::pytorch=2.0.0 pytorch::torchvision=0.15.0 pytorch::pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install tensorboard timm==0.5.4 opencv-python mkl==2024.0 setuptools easydict wget scikit-image fairscale
 pip install git+https://github.com/facebookresearch/segment-anything.git
-python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
-cd $PROJECT_DIR/ext/Matte-Anything/GroundingDINO && pip install -e .
+export CC=/usr/bin/gcc-11
+export CXX=/usr/bin/g++-11
+export CUDAHOSTCXX=/usr/bin/g++-11
+python -m pip install --no-build-isolation 'git+https://github.com/facebookresearch/detectron2.git'
+cd $PROJECT_DIR/ext/Matte-Anything/GroundingDINO && pip install --no-build-isolation -e .
 pip install supervision==0.22.0 # fixes the GroundingDINO error
 cd $PROJECT_DIR/ext/Matte-Anything && mkdir pretrained
 cd $PROJECT_DIR/ext/Matte-Anything/pretrained
@@ -87,9 +95,12 @@ conda deactivate
 cd $PROJECT_DIR/ext && git clone https://github.com/yfeng95/PIXIE
 cd $PROJECT_DIR/ext/PIXIE
 chmod +x fetch_model.sh && ./fetch_model.sh
-conda create -y -n pixie-env python=3.8 pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 \
-    pytorch-cuda=11.8 fvcore pytorch3d==0.7.5 kornia matplotlib \
-    -c pytorch -c nvidia -c fvcore -c conda-forge -c pytorch3d # this environment works with RTX 4090
+conda create -y -n pixie-env python=3.8
 conda activate pixie-env
+conda install -y --strict-channel-priority pytorch::pytorch=2.0.0 pytorch::torchvision=0.15.0 pytorch::pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install fvcore kornia matplotlib
+pip install ninja
+export MAX_JOBS=8
+pip install $PROJECT_DIR/ext/pytorch3d -v
 pip install pyyaml==5.4.1
 pip install git+https://github.com/1adrianb/face-alignment.git@54623537fd9618ca7c15688fd85aba706ad92b59 # install this commit to avoid error

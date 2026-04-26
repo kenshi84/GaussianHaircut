@@ -161,6 +161,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=2, interpolate_cameras=Fals
         R = [cam_info.R for cam_info in cam_infos]
         rotations = Rotation.from_matrix(np.stack(R))
         frames = [int(cam_info.image_name) for cam_info in cam_infos]
+        frames.sort()
         spline = RotationSpline(frames, rotations)
         R_interp = spline(list(range(frames[-1]))).as_matrix()
 

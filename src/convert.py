@@ -13,6 +13,7 @@ import os
 import logging
 from argparse import ArgumentParser
 import shutil
+from pathlib import Path
 
 # This Python script is based on the shell converter script provided in the MipNerF 360 repository.
 parser = ArgumentParser("Colmap converter")
@@ -26,7 +27,7 @@ parser.add_argument("--magick_executable", default="", type=str)
 parser.add_argument("--max_size", default=2048, type=int)
 args = parser.parse_args()
 colmap_command = '"{}"'.format(args.colmap_executable) if len(args.colmap_executable) > 0 else "colmap"
-magick_command = '"{}"'.format(args.magick_executable) if len(args.magick_executable) > 0 else "magick"
+magick_command = '"{}"'.format(args.magick_executable) if len(args.magick_executable) > 0 else "convert"
 use_gpu = 1 if not args.no_gpu else 0
 
 if not args.skip_matching:
@@ -38,7 +39,9 @@ if not args.skip_matching:
         --image_path " + args.source_path + "/input \
         --ImageReader.single_camera 1 \
         --ImageReader.camera_model " + args.camera + " \
-        --SiftExtraction.use_gpu " + str(use_gpu) + " \
+        --SiftExtraction.num_threads 1 \
+        --SiftExtraction.use_gpu 0 \
+        --SiftExtraction.estimate_affine_shape 1 \
         --SiftExtraction.max_image_size " + str(args.max_size)
     exit_code = os.system(feat_extracton_cmd)
     if exit_code != 0:
@@ -48,6 +51,7 @@ if not args.skip_matching:
     ## Feature matching
     feat_matching_cmd = colmap_command + " exhaustive_matcher \
         --database_path " + args.source_path + "/distorted/database.db \
+        --SiftMatching.guided_matching 1 \
         --SiftMatching.use_gpu " + str(use_gpu)
     exit_code = os.system(feat_matching_cmd)
     if exit_code != 0:
@@ -60,12 +64,30 @@ if not args.skip_matching:
     mapper_cmd = (colmap_command + " mapper \
         --database_path " + args.source_path + "/distorted/database.db \
         --image_path "  + args.source_path + "/input \
+        --Mapper.max_extra_param 1.7976e+308 \
+        --Mapper.ba_local_max_num_iterations 30 \
+        --Mapper.ba_global_max_num_iterations 75 \
+        --Mapper.ba_local_max_refinements 3 \
         --output_path "  + args.source_path + "/distorted/sparse")# \
         # --Mapper.ba_global_function_tolerance=0.000001")
     exit_code = os.system(mapper_cmd)
     if exit_code != 0:
         logging.error(f"Mapper failed with code {exit_code}. Exiting.")
         exit(exit_code)
+
+    sparse_dir = Path(args.source_path) / "distorted/sparse"
+    improved_dir = None
+    n = 1
+    while True:
+        candidate_dir = sparse_dir / str(n)
+        if not candidate_dir.is_dir():
+            break
+        improved_dir = candidate_dir
+        n += 1
+    if improved_dir is not None:
+        sparse_0_dir = sparse_dir / "0"
+        shutil.rmtree(sparse_0_dir)
+        sparse_0_dir.symlink_to(improved_dir.relative_to(sparse_dir), target_is_directory=True)
 
 ### Image undistortion
 ## We need to undistort our images into ideal pinhole intrinsics.

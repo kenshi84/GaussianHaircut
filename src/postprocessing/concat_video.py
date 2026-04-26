@@ -30,7 +30,7 @@ def main(input_path, exp_name_3):
         render_blender_new = Image.new("RGBA", render_blender.size, "WHITE")
         render_blender_new.paste(render_blender, (0, 0), render_blender)
         render_blender = render_blender_new.convert('RGB')
-        gt = Image.open(f'{input_path}/curves_reconstruction/{exp_name_3}/raw_frames/%06d.jpg' % (int(img_basename) - 1)).convert('RGB')
+        gt = Image.open(f'{input_path}/curves_reconstruction/{exp_name_3}/raw_frames/%06d.jpg' % int(img_basename)).convert('RGB')
         w, h = render_3dgs.size
         render_blender_resized = Resize(h, interpolation=InterpolationMode.BICUBIC)(render_blender)
         render_blender_cropped_resized = CenterCrop((h, w))(render_blender_resized)

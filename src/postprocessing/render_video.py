@@ -111,6 +111,7 @@ def main(blender_path, input_path, exp_name_1, exp_name_3, strand_length, speed_
         for fname in 
         sorted(os.listdir(f'{input_path}/images_2'))
     ]
+    frames.sort()
     cameras = pkl.load(open(f'{input_path}/3d_gaussian_splatting/{exp_name_1}/cameras/30000_matrices.pkl', 'rb'))
 
     # Unpack cameras
@@ -119,7 +120,7 @@ def main(blender_path, input_path, exp_name_1, exp_name_3, strand_length, speed_
     T = []
     for frame in frames:
         scale_x, scale_y = 1080, 1920
-        intrinsics, pose = load_K_Rt_from_P(None, cameras['%06d' % frame].transpose(0, 1)[:3, :4].numpy())
+        intrinsics, pose = load_K_Rt_from_P(None, cameras['%d' % frame].transpose(0, 1)[:3, :4].numpy())
         pose_all_inv = np.linalg.inv(pose)
         intrinsics_modified = intrinsics.copy()
 
@@ -222,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument('--exp_name_1', default='stage1_lor=0.1', type=str)
     parser.add_argument('--exp_name_3', default='stage3_lor=0.1', type=str)
     parser.add_argument('--strand_length', default=100, type=int)
-    parser.add_argument('--speed_up', default=4, type=int)
+    parser.add_argument('--speed_up', default=1, type=int)
     parser.add_argument('--max_frames', default=200, type=int)
 
     args, _ = parser.parse_known_args()
