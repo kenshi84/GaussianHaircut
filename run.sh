@@ -18,6 +18,7 @@ eval "$(conda shell.bash hook)"
 #################
 
 # Arrange raw images into a 3D Gaussian Splatting format
+echo -e "\e[1;31;43mArranging raw images into 3D Gaussian Splatting format\e[0m"
 conda deactivate && conda activate gaussian_splatting_hair
 cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python preprocess_raw_images.py \
@@ -30,6 +31,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python preprocess_raw_images.py \
 #     --camera $CAMERA --max_size 2400 || exit 1
 
 # Run Matte-Anything
+echo -e "\e[1;31;43mRunning Matte-Anything for hair segmentation\e[0m"
 conda deactivate && conda activate matte_anything
 cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python calc_masks.py \
@@ -42,11 +44,13 @@ CUDA_VISIBLE_DEVICES="$GPU" python calc_masks.py \
 #     --data_path $DATA_PATH --max_imgs 128 || exit 1
 
 # Resize images
+echo -e "\e[1;31;43mResizing images\e[0m"
 conda deactivate && conda activate gaussian_splatting_hair
 cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python resize_images.py --data_path $DATA_PATH || exit 1
 
 # Calculate orientation maps
+echo -e "\e[1;31;43mCalculating orientation maps\e[0m"
 conda deactivate && conda activate gaussian_splatting_hair
 cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python calc_orientation_maps.py \
@@ -58,6 +62,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python calc_orientation_maps.py \
     --vis_img_dir $DATA_PATH/orientations_2/vis_imgs || exit 1
 
 # Run OpenPose
+echo -e "\e[1;31;43mRunning OpenPose for pose estimation\e[0m"
 conda deactivate && cd $PROJECT_DIR/ext/openpose
 mkdir $DATA_PATH/openpose
 CUDA_VISIBLE_DEVICES="$GPU" ./build/examples/openpose/openpose.bin \
@@ -67,12 +72,14 @@ CUDA_VISIBLE_DEVICES="$GPU" ./build/examples/openpose/openpose.bin \
     --write_images $DATA_PATH/openpose/images --write_images_format jpg || exit 1
 
 # Run Face-Alignment
+echo -e "\e[1;31;43mRunning Face-Alignment for face keypoint estimation\e[0m"
 conda deactivate && conda activate gaussian_splatting_hair
 cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python calc_face_alignment.py \
     --data_path $DATA_PATH --image_dir "images_4" || exit 1
 
 # Run PIXIE
+echo -e "\e[1;31;43mRunning PIXIE for parametric face fitting\e[0m"
 conda deactivate && conda activate pixie-env
 cd $PROJECT_DIR/ext/PIXIE
 CUDA_VISIBLE_DEVICES="$GPU" python demos/demo_fit_face.py \
@@ -81,12 +88,14 @@ CUDA_VISIBLE_DEVICES="$GPU" python demos/demo_fit_face.py \
     --rasterizer_type pytorch3d || exit 1
 
 # Merge all PIXIE predictions in a single file
+echo -e "\e[1;31;43mMerging all PIXIE predictions in a single file\e[0m"
 conda deactivate && conda activate gaussian_splatting_hair
 cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python merge_smplx_predictions.py \
     --data_path $DATA_PATH || exit 1
 
 # Convert COLMAP cameras to txt
+echo -e "\e[1;31;43mConverting COLMAP cameras to txt format\e[0m"
 conda deactivate && conda activate gaussian_splatting_hair
 mkdir -p $DATA_PATH/sparse_txt
 CUDA_VISIBLE_DEVICES="$GPU" colmap model_converter \
@@ -94,6 +103,7 @@ CUDA_VISIBLE_DEVICES="$GPU" colmap model_converter \
     --output_path $DATA_PATH/sparse_txt --output_type TXT || exit 1
 
 # Convert COLMAP cameras to H3DS format
+echo -e "\e[1;31;43mConverting COLMAP cameras to H3DS format\e[0m"
 conda deactivate && conda activate gaussian_splatting_hair
 cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python colmap_parsing.py \
@@ -107,6 +117,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python colmap_parsing.py \
 ##################
 
 # Run 3D Gaussian Splatting reconstruction
+echo -e "\e[1;31;43mRunning 3D Gaussian Splatting reconstruction\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src
 CUDA_VISIBLE_DEVICES="$GPU" python train_gaussians.py \
     -s $DATA_PATH -m "$EXP_PATH_1" -r 1 --port "888$GPU" \
@@ -114,6 +125,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python train_gaussians.py \
     --lambda_dorient 0.1 || exit 1
 
 # Run FLAME mesh fitting
+echo -e "\e[1;31;43mRunning FLAME mesh fitting\e[0m"
 conda activate gaussian_splatting_hair
 cd $PROJECT_DIR/ext/NeuralHaircut/src/multiview_optimization
 
@@ -138,12 +150,14 @@ CUDA_VISIBLE_DEVICES="$GPU" python fit.py --conf confs/train_person_1_.conf \
     --fitted_camera_path $EXP_PATH_1/cameras/30000_matrices.pkl || exit 1
 
 # Crop the reconstructed scene
+echo -e "\e[1;31;43mCropping the reconstructed scene\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python scale_scene_into_sphere.py \
     --path_to_data $DATA_PATH \
     -m "$DATA_PATH/3d_gaussian_splatting/$EXP_NAME_1" --iter 30000 || exit 1
 
 # Remove hair Gaussians that intersect with the FLAME head mesh
+echo -e "\e[1;31;43mRemoving hair Gaussians that intersect with the FLAME head mesh\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python filter_flame_intersections.py \
     --flame_mesh_dir $DATA_PATH/flame_fitting/$EXP_NAME_1 \
@@ -151,6 +165,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python filter_flame_intersections.py \
     --project_dir $PROJECT_DIR/ext/NeuralHaircut || exit 1
 
 # Run rendering for training views
+echo -e "\e[1;31;43mRunning rendering for training views\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src
 CUDA_VISIBLE_DEVICES="$GPU" python render_gaussians.py \
     -s $DATA_PATH -m "$DATA_PATH/3d_gaussian_splatting/$EXP_NAME_1" \
@@ -158,6 +173,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python render_gaussians.py \
     --trainable_cameras --trainable_intrinsics --use_barf || exit 1
 
 # Get FLAME mesh scalp maps
+echo -e "\e[1;31;43mGetting FLAME mesh scalp maps\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python extract_non_visible_head_scalp.py \
     --project_dir $PROJECT_DIR/ext/NeuralHaircut --data_dir $DATA_PATH \
@@ -166,6 +182,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python extract_non_visible_head_scalp.py \
     -m "$DATA_PATH/3d_gaussian_splatting/$EXP_NAME_1" || exit 1
 
 # Run latent hair strands reconstruction
+echo -e "\e[1;31;43mRunning latent hair strands reconstruction\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src
 CUDA_VISIBLE_DEVICES="$GPU" python train_latent_strands.py \
     -s $DATA_PATH -m "$DATA_PATH/3d_gaussian_splatting/$EXP_NAME_1" -r 1 \
@@ -179,6 +196,7 @@ CUDA_VISIBLE_DEVICES="$GPU" python train_latent_strands.py \
     --iterations 20000 --port "800$GPU" || exit 1
 
 # Run hair strands reconstruction
+echo -e "\e[1;31;43mRunning hair strands reconstruction\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src
 CUDA_VISIBLE_DEVICES="$GPU" python train_strands.py \
     -s $DATA_PATH -m "$DATA_PATH/3d_gaussian_splatting/$EXP_NAME_1" -r 1 \
@@ -200,6 +218,7 @@ rm -rf "$DATA_PATH/3d_gaussian_splatting/$EXP_NAME_1/train_cropped"
 ##################
 
 # Export the resulting strands as pkl and ply
+echo -e "\e[1;31;43mExporting the resulting strands as pkl and ply\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src/preprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python export_curves.py \
     --data_dir $DATA_PATH --model_name $EXP_NAME_3 --iter 10000 \
@@ -208,12 +227,14 @@ CUDA_VISIBLE_DEVICES="$GPU" python export_curves.py \
     --hair_conf_path "$PROJECT_DIR/src/arguments/hair_strands_textured.yaml" || exit 1
 
 # Render the visualizations
+echo -e "\e[1;31;43mRendering the visualizations\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src/postprocessing
 CUDA_VISIBLE_DEVICES="$GPU" python render_video.py \
     --blender_path "$BLENDER_DIR" --input_path "$DATA_PATH" \
     --exp_name_1 "$EXP_NAME_1" --exp_name_3 "$EXP_NAME_3" || exit 1
 
 # Render the strands
+echo -e "\e[1;31;43mRendering the strands\e[0m"
 conda activate gaussian_splatting_hair && cd $PROJECT_DIR/src
 CUDA_VISIBLE_DEVICES="$GPU" python render_strands.py \
     -s $DATA_PATH --data_dir "$DATA_PATH" --data_device 'cpu' --skip_test \
