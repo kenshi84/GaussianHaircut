@@ -124,30 +124,22 @@ CUDA_VISIBLE_DEVICES="$GPU" python train_gaussians.py \
     --trainable_cameras --trainable_intrinsics --use_barf \
     --lambda_dorient 0.1 || exit 1
 
-# Run FLAME mesh fitting
-echo -e "\e[1;31;43mRunning FLAME mesh fitting\e[0m"
+# Skip FLAME LBFGS fit; align the FLAME mean-shape template to an externally
+# fitted head mesh (ICTFaceKit topology). Set the two paths below to your fit.
+#   EXTERNAL_HEAD_MESH: head_fit.obj from prep5_fit_head.py (must live in the
+#                       same world frame as $EXP_PATH_1/cameras/30000_matrices.pkl)
+#   ICTFACEKIT_NPZ:     ictfacekit_14062.npz with idx_to_landmark_verts (68 dlib pts)
+: "${EXTERNAL_HEAD_MESH:=$DATA_PATH/head_fit_in_colmap.obj}"
+: "${ICTFACEKIT_NPZ:=/data0/optistrands/pretrained/ictfacekit_14062.npz}"
+
+echo -e "\e[1;31;43mAligning FLAME template to external head fit\e[0m"
 conda activate gaussian_splatting_hair
-cd $PROJECT_DIR/ext/NeuralHaircut/src/multiview_optimization
-
-CUDA_VISIBLE_DEVICES="$GPU" python fit.py --conf confs/train_person_1.conf \
-    --batch_size 1 --train_rotation True --fixed_images True \
-    --save_path $DATA_PATH/flame_fitting/$EXP_NAME_1/stage_1 \
-    --data_path $DATA_PATH \
-    --fitted_camera_path $EXP_PATH_1/cameras/30000_matrices.pkl || exit 1
-
-CUDA_VISIBLE_DEVICES="$GPU" python fit.py --conf confs/train_person_1.conf \
-    --batch_size 4 --train_rotation True --fixed_images True \
-    --save_path $DATA_PATH/flame_fitting/$EXP_NAME_1/stage_2 \
-    --checkpoint_path $DATA_PATH/flame_fitting/$EXP_NAME_1/stage_1/opt_params_final \
-    --data_path $DATA_PATH \
-    --fitted_camera_path $EXP_PATH_1/cameras/30000_matrices.pkl || exit 1
-
-CUDA_VISIBLE_DEVICES="$GPU" python fit.py --conf confs/train_person_1_.conf \
-    --batch_size 32 --train_rotation True --train_shape True \
-    --save_path $DATA_PATH/flame_fitting/$EXP_NAME_1/stage_3 \
-    --checkpoint_path $DATA_PATH/flame_fitting/$EXP_NAME_1/stage_2/opt_params_final \
-    --data_path $DATA_PATH \
-    --fitted_camera_path $EXP_PATH_1/cameras/30000_matrices.pkl || exit 1
+cd $PROJECT_DIR/src/preprocessing
+CUDA_VISIBLE_DEVICES="$GPU" python fit_flame_from_external_mesh.py \
+    --data_path "$DATA_PATH" \
+    --exp_name "$EXP_NAME_1" \
+    --external_head_mesh "$EXTERNAL_HEAD_MESH" \
+    --ictfacekit_npz "$ICTFACEKIT_NPZ" || exit 1
 
 # Crop the reconstructed scene
 echo -e "\e[1;31;43mCropping the reconstructed scene\e[0m"
