@@ -17,12 +17,12 @@ eval "$(conda shell.bash hook)"
 # PREPROCESSING #
 #################
 
-# Arrange raw images into a 3D Gaussian Splatting format
-echo -e "\e[1;31;43mArranging raw images into 3D Gaussian Splatting format\e[0m"
-conda deactivate && conda activate gaussian_splatting_hair
-cd $PROJECT_DIR/src/preprocessing
-CUDA_VISIBLE_DEVICES="$GPU" python preprocess_raw_images.py \
-    --data_path $DATA_PATH || exit 1
+# # Arrange raw images into a 3D Gaussian Splatting format
+# echo -e "\e[1;31;43mArranging raw images into 3D Gaussian Splatting format\e[0m"
+# conda deactivate && conda activate gaussian_splatting_hair
+# cd $PROJECT_DIR/src/preprocessing
+# CUDA_VISIBLE_DEVICES="$GPU" python preprocess_raw_images.py \
+#     --data_path $DATA_PATH || exit 1
 
 # # Run COLMAP reconstruction and undistort the images and cameras
 # conda deactivate && conda activate gaussian_splatting_hair
