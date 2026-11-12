@@ -49,6 +49,69 @@ This repository contains an official implementation of Gaussian Haircut, a stran
 
    The script performs data pre-processing, reconstruction, and final visualization using Blender. Use Tensorboard to see intermediate visualizations.
 
+## Synthetic cases with known cameras and FLAME meshes
+
+After installing the reconstruction and Matte-Anything dependencies, run:
+
+```bash
+DATA_PATH=datasets/synth/ct2hair/bangs ./run_synthetic.sh
+```
+
+The input case must contain `cropped/images/*.jpg`, the COLMAP binaries
+`sparse/{cameras,images,points3D}.bin`, and `head_flame.obj` in the original
+5023-vertex FLAME topology. Cameras must be PINHOLE or SIMPLE_PINHOLE, with
+calibration dimensions matching the supplied images. `points3D.bin` supplies
+the initial Gaussian point cloud and must be nonempty.
+
+Outputs mirror the path below `datasets/`: this example writes everything to
+`output/synth/ct2hair/bangs/`. A case outside `datasets/` defaults to
+`output/<case_name>/`. Input files are never moved or edited. The output contains
+verbatim camera binaries in `sparse/0/` and a verbatim `head_flame.obj`.
+
+The synthetic runner generates masks from RGB, keeps every registered view,
+and skips camera reconstruction, camera optimization, and FLAME fitting.
+Half-resolution working images use the corresponding scaled intrinsics,
+including each camera's principal point. Gaussian points, scalp roots, and
+exported strands retain millimeters and the supplied +Y up, +Z front, +X left
+coordinate frame; no alignment or unit conversion is required for GT comparison.
+Scene cropping only removes points. `scale.pickle` records the crop radius and
+center for the existing strand-thickness calculation; it does not transform the
+saved geometry.
+
+Final strands are in
+`curves_reconstruction/stage3/strands/10000_strands.pkl` (an `N x 100 x 3` array)
+and `10000_strands.ply` (the same samples flattened into a point cloud).
+The stage directories also contain checkpoints and camera metadata; the
+pipeline log is `logs/pipeline.log`. Blender video generation and GT metrics
+are not part of this runner.
+
+The defaults are 30,000 Gaussian, 20,000 latent-strand, and 10,000 refinement
+iterations. Override them for a smoke test; its geometry is not a converged
+accuracy result:
+
+```bash
+DATA_PATH=datasets/synth/ct2hair/bangs \
+ITERATIONS_STAGE1=1000 ITERATIONS_STAGE2=10 ITERATIONS_STAGE3=10 \
+RESOLUTION=2 ./run_synthetic.sh
+```
+
+`RESOLUTION=2` halves the working images again during training/rendering;
+the default is `1`. `GPU` selects the GPU (default `0`). All stages use fixed
+cameras, a millimeter-appropriate far plane, and CPU storage for training images.
+Run cases sequentially:
+
+```bash
+for case in datasets/synth/ct2hair/*/; do
+    DATA_PATH="$case" ./run_synthetic.sh || break
+done
+```
+
+Validate input cases without generating reconstruction files using
+`python src/preprocessing/preprocess_synthetic_scene.py --data_path <case> --check_only`.
+Run regression checks with `python -B tests/test_synthetic.py` in the
+`gaussian_splatting_hair` environment. They check all ten local ct2hair cases,
+camera projection and freezing, JPG auxiliary-file paths, and input preservation.
+
 ## License
 
 This code is based on the 3D Gaussian Splatting project. For terms and conditions, please refer to LICENSE_3DGS. The rest of the code is distributed under CC BY-NC-SA 4.0.

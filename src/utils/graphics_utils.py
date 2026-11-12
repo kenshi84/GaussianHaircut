@@ -79,6 +79,16 @@ def fov2focal(fov, pixels):
     else:
         raise
 
+def clamp_camera_rays(tx, ty, tz, camera, tan_fovx, tan_fovy):
+    """Clamp the projection Jacobian to the actual (possibly off-axis) frustum."""
+    offset_x = getattr(camera, 'principal_offset_x', 0.0)
+    offset_y = getattr(camera, 'principal_offset_y', 0.0)
+    tx = torch.clamp(tx / tz, (offset_x - 1.3) * tan_fovx,
+                     (offset_x + 1.3) * tan_fovx) * tz
+    ty = torch.clamp(ty / tz, (offset_y - 1.3) * tan_fovy,
+                     (offset_y + 1.3) * tan_fovy) * tz
+    return tx, ty
+
 def focal2fov(focal, pixels):
     if isinstance(focal, torch.Tensor):
         return 2*torch.atan(pixels/(2*focal))

@@ -10,6 +10,7 @@
 #
 
 import torch
+from utils.graphics_utils import clamp_camera_rays
 import numpy as np
 from utils.general_utils import inverse_sigmoid
 from torch import nn
@@ -247,13 +248,7 @@ class GaussianModelCurves:
         t = (mean[:, None, :] @ viewmatrix[None, :3, :3] + viewmatrix[None, [3], :3])[:, 0]
         tx, ty, tz = t[:, 0], t[:, 1], t[:, 2]
 
-        limx = 1.3 * tan_fovx
-        limy = 1.3 * tan_fovy
-        txtz = tx / tz
-        tytz = ty / tz
-        
-        tx = torch.clamp(txtz, min=-limx, max=limx) * tz
-        ty = torch.clamp(tytz, min=-limy, max=limy) * tz
+        tx, ty = clamp_camera_rays(tx, ty, tz, viewpoint_camera, tan_fovx, tan_fovy)
 
         zeros = torch.zeros_like(tz)
 
@@ -404,13 +399,7 @@ class GaussianModelCurves:
         t = (mean[:, None, :] @ viewmatrix[None, :3, :3] + viewmatrix[None, [3], :3])[:, 0]
         tx, ty, tz = t[:, 0], t[:, 1], t[:, 2]
 
-        limx = 1.3 * tan_fovx
-        limy = 1.3 * tan_fovy
-        txtz = tx / tz
-        tytz = ty / tz
-        
-        tx = torch.clamp(txtz, min=-limx, max=limx) * tz
-        ty = torch.clamp(tytz, min=-limy, max=limy) * tz
+        tx, ty = clamp_camera_rays(tx, ty, tz, viewpoint_camera, tan_fovx, tan_fovy)
 
         zeros = torch.zeros_like(tz)
 

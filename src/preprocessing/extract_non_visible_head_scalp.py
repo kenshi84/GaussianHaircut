@@ -26,6 +26,7 @@ sys.path.append('../../ext/NeuralHaircut/k-diffusion')
 from utils.general_utils import build_scaling_rotation
 from gaussian_renderer import GaussianModel
 from arguments import ModelParams, PipelineParams, get_combined_args
+from scene.colmap_loader import read_intrinsics_binary, read_extrinsics_binary, qvec2rotmat
 
 import argparse
 import yaml
@@ -105,7 +106,12 @@ def main(args):
     scalp_face_verts = face_vertices(scalp_verts, scalp_faces)[0]
     scalp_mesh = Meshes(verts=scalp_verts, faces=scalp_faces).cuda()
 
-    cams_all = pkl.load(open(args.cams_path, 'rb'))
+    if args.fixed_cameras:
+        intrinsics_all = read_intrinsics_binary(Path(args.data_dir) / 'sparse/0/cameras.bin')
+        extrinsics_all = read_extrinsics_binary(Path(args.data_dir) / 'sparse/0/images.bin')
+        cams_all = {Path(image.name).stem: image for image in extrinsics_all.values()}
+    else:
+        cams_all = pkl.load(open(args.cams_path, 'rb'))
     masks = {}
     cams = {}
     for k in cams_all.keys():
@@ -113,27 +119,30 @@ def main(args):
         mask = cv2.dilate(cv2.imread(f'{args.data_dir}/masks_2/body/{k}.png'), np.ones((5, 5))) / 255. >= 0.5
         mask_head = np.clip(mask.astype('float32') - mask_hair.astype('float32'), 0, 1)
         masks[k] = torch.from_numpy(mask_head)[:, :, 0].cuda()
-        intrinsics, pose = load_K_Rt_from_P(None, cams_all[k].transpose(0, 1)[:3, :4].numpy())
-        pose_inv = np.linalg.inv(pose)
-        intrinsics_modified = intrinsics.copy()
-
-        intrinsics_modified[0, 0] /= 2  # Halve fx
-        intrinsics_modified[1, 1] /= 2  # Halve fy
-        intrinsics_modified[0, 2] /= 2  # Halve cx
-        intrinsics_modified[1, 2] /= 2  # Halve cy
-
-        intrinsics_modified[0, 2] += 0.5  # Adjust cx
-        intrinsics_modified[1, 2] += 0.5  # Adjust cy
-
         scale_y, scale_x = masks[k].shape
-
-        # Create a scaling matrix
-        scaling_matrix = np.array([[scale_x, 0, 0, 0],
-                                   [0, scale_y, 0, 0],
-                                   [0, 0, 1, 0],
-                                   [0, 0, 0, 1]])
-
-        intrinsics_scaled = scaling_matrix @ intrinsics_modified
+        if args.fixed_cameras:
+            image = cams_all[k]
+            calibration = intrinsics_all[image.camera_id]
+            if calibration.model == 'PINHOLE':
+                fx, fy, cx, cy = calibration.params
+            elif calibration.model == 'SIMPLE_PINHOLE':
+                fx, cx, cy = calibration.params
+                fy = fx
+            else:
+                raise ValueError(f'Unsupported camera model: {calibration.model}')
+            intrinsics_scaled = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
+            intrinsics_scaled[0] *= scale_x / calibration.width
+            intrinsics_scaled[1] *= scale_y / calibration.height
+            pose_inv = np.eye(4)
+            pose_inv[:3, :3] = qvec2rotmat(image.qvec)
+            pose_inv[:3, 3] = image.tvec
+        else:
+            intrinsics, pose = load_K_Rt_from_P(None, cams_all[k].transpose(0, 1)[:3, :4].numpy())
+            pose_inv = np.linalg.inv(pose)
+            intrinsics_modified = intrinsics.copy()
+            intrinsics_modified[:2, :3] /= 2
+            intrinsics_modified[:2, 2] += 0.5
+            intrinsics_scaled = np.diag([scale_x, scale_y, 1, 1]) @ intrinsics_modified
 
         size = torch.tensor([scale_y, scale_x]).to(args.device)
 

@@ -14,7 +14,7 @@ import math
 
 def main(args):
     data_path = args.data_path
-    if os.path.exists(f'{data_path}/iqa_filtered_names.pkl'):
+    if not args.keep_all and os.path.exists(f'{data_path}/iqa_filtered_names.pkl'):
         img_names = pkl.load(open(f'{data_path}/iqa_filtered_names.pkl', 'rb'))
     else:
         img_names = os.listdir(f'{data_path}/images')
@@ -34,7 +34,7 @@ def main(args):
         h_old, w_old = img.shape[:2]
         mask_hair = np.asarray(Image.open(f'{data_path}/masks/hair/{basename}.png'))
         mask_body = np.asarray(Image.open(f'{data_path}/masks/body/{basename}.png'))
-        if os.path.exists(f'{data_path}/masks/face/{basename}.png'):
+        if not args.keep_all and os.path.exists(f'{data_path}/masks/face/{basename}.png'):
             mask_face = np.asarray(Image.open(f'{data_path}/masks/face/{basename}.png'))
             # Check intersection between face and hair
             if ((mask_hair > 127) * (mask_face > 127)).sum() > (mask_body > 127).sum() * 0.1:
@@ -100,10 +100,10 @@ def main(args):
 
         Image.fromarray(img).resize((w_old // 2, h_old // 2), Image.BICUBIC).save(f'{data_path}/images_2/{img_name}')
         Image.fromarray(img).resize((w_old // 4, h_old // 4), Image.BICUBIC).save(f'{data_path}/images_4/{img_name}')
-        Image.fromarray(mask_hair).resize((w_old // 2, h_old // 2), Image.BICUBIC).save(f'{data_path}/masks_2/hair/{img_name}')
-        Image.fromarray(mask_body).resize((w_old // 2, h_old // 2), Image.BICUBIC).save(f'{data_path}/masks_2/body/{img_name}')
-        Image.fromarray(mask_hair).resize((w_old // 4, h_old // 4), Image.BICUBIC).save(f'{data_path}/masks_4/hair/{img_name}')
-        Image.fromarray(mask_body).resize((w_old // 4, h_old // 4), Image.BICUBIC).save(f'{data_path}/masks_4/body/{img_name}')
+        Image.fromarray(mask_hair).resize((w_old // 2, h_old // 2), Image.BICUBIC).save(f'{data_path}/masks_2/hair/{basename}.png')
+        Image.fromarray(mask_body).resize((w_old // 2, h_old // 2), Image.BICUBIC).save(f'{data_path}/masks_2/body/{basename}.png')
+        Image.fromarray(mask_hair).resize((w_old // 4, h_old // 4), Image.BICUBIC).save(f'{data_path}/masks_4/hair/{basename}.png')
+        Image.fromarray(mask_body).resize((w_old // 4, h_old // 4), Image.BICUBIC).save(f'{data_path}/masks_4/body/{basename}.png')
 
         # img_crop.save(f'{data_path}/images_crop/{img_name}')
         # mask_hair_crop.save(f'{data_path}/masks_crop/hair/{img_name}')
@@ -117,6 +117,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(conflict_handler='resolve')
 
     parser.add_argument('--data_path', default='', type=str)
+    parser.add_argument('--keep_all', action='store_true', help='Keep every calibrated synthetic view')
     # parser.add_argument('--img_size', default=1024, type=int)
 
     args, _ = parser.parse_known_args()

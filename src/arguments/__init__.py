@@ -61,6 +61,8 @@ class ModelParams(ParamGroup):
         self.trainable_cameras = True
         self.trainable_intrinsics = True
         self.use_barf = True
+        self.fixed_cameras = False
+        self.zfar = 100.0
         self.flame_mesh_dir = ""
         self.strand_scale = 1e-3
         # Visualization args
@@ -73,6 +75,10 @@ class ModelParams(ParamGroup):
     def extract(self, args):
         g = super().extract(args)
         g.source_path = os.path.abspath(g.source_path)
+        if getattr(g, 'fixed_cameras', False):
+            g.trainable_cameras = False
+            g.trainable_intrinsics = False
+            g.use_barf = False
         return g
 
 class PipelineParams(ParamGroup):

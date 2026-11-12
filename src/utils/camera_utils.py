@@ -21,6 +21,7 @@ import os,sys,time
 import collections
 from easydict import EasyDict as edict
 import tqdm
+from pathlib import Path
 
 
 
@@ -55,16 +56,16 @@ def loadCam(args, id, cam_info, resolution_scale):
         resized_mask_hair = PILtoTorch(Image.open(f'{args.model_path}/train_cropped/ours_{args.iteration_data}/hair_masks/{basename}.png'), resolution)
     else:
         resized_image_rgb = PILtoTorch(cam_info.image, resolution)
-        resized_mask_body = PILtoTorch(Image.open(cam_info.image_path.replace(f'images_2', f'masks_2/body')), resolution)
-        resized_mask_hair = PILtoTorch(Image.open(cam_info.image_path.replace(f'images_2', f'masks_2/hair')), resolution)
+        resized_mask_body = PILtoTorch(Image.open(Path(cam_info.image_path.replace('images_2', 'masks_2/body')).with_suffix('.png')), resolution)
+        resized_mask_hair = PILtoTorch(Image.open(Path(cam_info.image_path.replace('images_2', 'masks_2/hair')).with_suffix('.png')), resolution)
 
     if hasattr(args, 'load_synthetic_geom') and args.load_synthetic_geom:
         basename = os.path.basename(cam_info.image_path).split('.')[0]
         resized_orient_angle = PILtoTorch(Image.open(f'{args.model_path}/train_cropped/ours_{args.iteration_data}/orients/{basename}.png'), resolution)
         resized_orient_conf = F.interpolate(torch.load(f'{args.model_path}/train_cropped/ours_{args.iteration_data}/orient_confs/{basename}.pth').float()[None], size=resolution[::-1], mode='bilinear')[0]
     else:
-        resized_orient_angle = PILtoTorch(Image.open(cam_info.image_path.replace(f'images_2', f'orientations_2/angles').replace('png', 'png')), resolution, max_value=180.0) # [0, 1], where 1 stands for pi
-        resized_orient_var = F.interpolate(torch.from_numpy(np.load(cam_info.image_path.replace(f'images_2', f'orientations_2/vars').replace('png', 'npy'))).float()[None, None], size=resolution[::-1], mode='bilinear')[0] / math.pi**2
+        resized_orient_angle = PILtoTorch(Image.open(Path(cam_info.image_path.replace('images_2', 'orientations_2/angles')).with_suffix('.png')), resolution, max_value=180.0) # [0, 1], where 1 stands for pi
+        resized_orient_var = F.interpolate(torch.from_numpy(np.load(Path(cam_info.image_path.replace('images_2', 'orientations_2/vars')).with_suffix('.npy'))).float()[None, None], size=resolution[::-1], mode='bilinear')[0] / math.pi**2
         resized_orient_conf = 1 / (resized_orient_var ** 2 + 1e-7)
 
     gt_image = resized_image_rgb[:3, ...]
@@ -81,7 +82,8 @@ def loadCam(args, id, cam_info, resolution_scale):
                   FoVx=cam_info.FovX, FoVy=cam_info.FovY, width=cam_info.width, height=cam_info.height,
                   image=gt_image, mask_body=gt_mask_body, mask_hair=gt_mask_hair, orient_angle=gt_orient_angle, orient_conf=gt_orient_conf, depth=gt_depth,
                   image_name=cam_info.image_name, uid=id, data_device=args.data_device, white_background=args.white_background,
-                  trainable_cameras=args.trainable_cameras, use_barf=args.use_barf, trainable_intrinsics=args.trainable_intrinsics)
+                  trainable_cameras=args.trainable_cameras, use_barf=args.use_barf, trainable_intrinsics=args.trainable_intrinsics,
+                  cx=cam_info.cx, cy=cam_info.cy, zfar=getattr(args, 'zfar', None) or 100.0)
 
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
@@ -109,6 +111,8 @@ def camera_to_JSON(id, camera : Camera):
         'position': pos.tolist(),
         'rotation': serializable_array_2d,
         'fy' : fov2focal(camera.FovY, camera.height),
-        'fx' : fov2focal(camera.FovX, camera.width)
+        'fx' : fov2focal(camera.FovX, camera.width),
+        'cx' : camera.width / 2 if camera.cx is None else camera.cx,
+        'cy' : camera.height / 2 if camera.cy is None else camera.cy
     }
     return camera_entry

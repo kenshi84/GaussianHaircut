@@ -16,6 +16,7 @@ ext/diff_gaussian_rasterization_hair/third_party
 # Executable files
 scripts
 *.sh
+!run_synthetic.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

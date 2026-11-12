@@ -24,7 +24,8 @@ class Camera(nn.Module):
                  image, mask_body, mask_hair, orient_angle, orient_conf, depth,
                  image_name, uid,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda", white_background = False,
-                 trainable_cameras = False, use_barf = False, trainable_intrinsics = False
+                 trainable_cameras = False, use_barf = False, trainable_intrinsics = False,
+                 cx=None, cy=None, zfar=100.0
                  ):
         super(Camera, self).__init__()
 
@@ -36,6 +37,11 @@ class Camera(nn.Module):
         self._FoVy = FoVy + torch.zeros(1).cuda()
         self.width = width
         self.height = height
+        self.cx = width / 2 if cx is None else cx
+        self.cy = height / 2 if cy is None else cy
+        # getProjectionMatrix takes the negative of the NDC principal-point offset.
+        self.principal_offset_x = 1 - 2 * self.cx / width
+        self.principal_offset_y = 1 - 2 * self.cy / height
         self.image_name = image_name
         self.trainable_cameras = trainable_cameras
         self.use_barf = use_barf
@@ -63,8 +69,10 @@ class Camera(nn.Module):
 
         self.original_image = self.original_image * self.original_mask_body + white_background * (1 - self.original_mask_body)
 
-        self.zfar = 100.0
+        self.zfar = zfar
         self.znear = 0.01
+        if self.zfar <= self.znear:
+            raise ValueError('zfar must be greater than znear')
 
         self.trans = trans
         self.scale = scale
@@ -75,7 +83,9 @@ class Camera(nn.Module):
             znear=self.znear, 
             zfar=self.zfar, 
             fovX=self._FoVx, 
-            fovY=self._FoVy
+            fovY=self._FoVy,
+            cx=self.principal_offset_x,
+            cy=self.principal_offset_y
         ).transpose(0,1).cuda()
         self._full_proj_transform = (self._world_view_transform.unsqueeze(0).bmm(self._projection_matrix.unsqueeze(0))).squeeze(0)
         self._camera_center = self._world_view_transform.inverse()[3, :3]
@@ -135,13 +145,15 @@ class Camera(nn.Module):
                 znear=self.znear, 
                 zfar=self.zfar, 
                 fovX=self.FoVx, 
-                fovY=self.FoVy
+                fovY=self.FoVy,
+                cx=self.principal_offset_x,
+                cy=self.principal_offset_y
             ).transpose(0,1)
         return self._projection_matrix
 
     @property
     def full_proj_transform(self):
-        if self.trainable_cameras:
+        if self.trainable_cameras or self.trainable_intrinsics:
             return (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
         else:
             return self._full_proj_transform

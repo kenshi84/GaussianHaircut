@@ -104,7 +104,8 @@ def main(args):
     os.makedirs(args.filtered_img_dir, exist_ok=True)
     os.makedirs(args.vis_img_dir, exist_ok=True)
 
-    img_list = sorted(os.listdir(args.mask_path))
+    img_list = sorted(name for name in os.listdir(args.img_path)
+                      if name.lower().endswith(('.jpg', '.jpeg', '.png')))
 
     for img_name in tqdm.tqdm(img_list):
         basename = img_name.split('.')[0]
@@ -132,7 +133,7 @@ def main(args):
         # filtered_img[u:d, l:r] = filtered_img_
         
         rad = orientation_map
-        mask = np.asarray(Image.open(os.path.join(args.mask_path, img_name))) / 255.
+        mask = np.asarray(Image.open(os.path.join(args.mask_path, basename + '.png'))) / 255.
         red = np.clip(1 - np.abs(rad -  0.) / 45., a_min=0, a_max=1) + np.clip(1 - np.abs(rad - 180.) / 45., a_min=0, a_max=1)
         green = np.clip(1 - np.abs(rad - 90.) / 45., a_min=0, a_max=1)
         magenta = np.clip(1 - np.abs(rad - 45.) / 45., a_min=0, a_max=1)

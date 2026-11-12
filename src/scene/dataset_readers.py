@@ -43,6 +43,8 @@ class CameraInfo(NamedTuple):
     image_name: str
     width: int
     height: int
+    cx: float = None
+    cy: float = None
 
 class SceneInfo(NamedTuple):
     point_cloud: BasicPointCloud
@@ -93,11 +95,13 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
 
         if intr.model=="SIMPLE_PINHOLE":
             focal_length_x = intr.params[0]
+            cx, cy = intr.params[1:3]
             FovY = focal2fov(focal_length_x, height)
             FovX = focal2fov(focal_length_x, width)
         elif intr.model=="PINHOLE":
             focal_length_x = intr.params[0]
             focal_length_y = intr.params[1]
+            cx, cy = intr.params[2:4]
             FovY = focal2fov(focal_length_y, height)
             FovX = focal2fov(focal_length_x, width)
         else:
@@ -111,7 +115,8 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         image = Image.open(image_path)
         
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
-                              image_path=image_path, image_name=image_name, width=width, height=height)
+                              image_path=image_path, image_name=image_name, width=width, height=height,
+                              cx=float(cx), cy=float(cy))
         cam_infos.append(cam_info)
     sys.stdout.write('\n')
     return cam_infos
@@ -185,7 +190,9 @@ def readColmapSceneInfo(path, images, eval, llffhold=2, interpolate_cameras=Fals
                 image_path = cam_infos[prev_j].image_path.replace('%06d' % prev_j, '%06d' % i), 
                 image_name = '%06d' % i, 
                 width = cam_infos[prev_j].width, 
-                height = cam_infos[prev_j].height
+                height = cam_infos[prev_j].height,
+                cx = cam_infos[prev_j].cx * alpha + cam_infos[next_j].cx * (1 - alpha),
+                cy = cam_infos[prev_j].cy * alpha + cam_infos[next_j].cy * (1 - alpha)
             )
 
             cam_infos_interp.append(cam_info_interp)
