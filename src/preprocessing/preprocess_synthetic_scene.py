@@ -73,16 +73,17 @@ def prepare_colmap_case(args):
     output = Path(args.output_path).resolve()
     if output == source or source in output.parents:
         raise ValueError('Output must be outside the input case directory')
+    work = output / 'work'
     for directory in ('images', 'sparse/0', f'flame_fitting/{args.experiment}/stage_3'):
-        (output / directory).mkdir(parents=True, exist_ok=True)
+        (work / directory).mkdir(parents=True, exist_ok=True)
     for name in names:
-        shutil.copy2(source / 'cropped/images' / name, output / 'images' / name)
+        shutil.copy2(source / 'cropped/images' / name, work / 'images' / name)
     for name in ('cameras.bin', 'images.bin', 'points3D.bin'):
-        shutil.copy2(source / 'sparse' / name, output / 'sparse/0' / name)
+        shutil.copy2(source / 'sparse' / name, work / 'sparse/0' / name)
     # Copy the OBJ verbatim: mesh loaders must not reindex or normalize the supplied head.
     shutil.copy2(source / 'head_flame.obj', output / 'head_flame.obj')
-    shutil.copy2(source / 'head_flame.obj', output / f'flame_fitting/{args.experiment}/stage_3/mesh_final.obj')
-    print(f'Prepared {len(names)} views in {output}; coordinates remain in millimeters')
+    shutil.copy2(source / 'head_flame.obj', work / f'flame_fitting/{args.experiment}/stage_3/mesh_final.obj')
+    print(f'Prepared {len(names)} views in {work}; coordinates remain in millimeters')
 
 
 
@@ -120,7 +121,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser(conflict_handler='resolve')
     parser.add_argument('--data_path', default='', type=str)
-    parser.add_argument('--output_path', type=str, help='Stage a COLMAP/FLAME case here without modifying its inputs')
+    parser.add_argument('--output_path', type=str, help='Output case directory; stage intermediate data under work/ without modifying inputs')
     parser.add_argument('--experiment', default='stage1')
     parser.add_argument('--check_only', action='store_true')
     parser.add_argument('--print_output_path', action='store_true')

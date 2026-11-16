@@ -34,7 +34,7 @@ spec.loader.exec_module(prepare)
 
 CASES = PROJECT / 'datasets/synth/ct2hair'
 CASE = CASES / 'bangs'
-ARTIFACTS = PROJECT / 'output/synth/ct2hair/bangs/validation'
+ARTIFACTS = PROJECT / 'output/synth/ct2hair/bangs/work/validation'
 
 
 def digest(path):
@@ -68,11 +68,12 @@ class SyntheticTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 prepare.prepare_colmap_case(args)
             out = Path(work)
+            self.assertEqual({p.name for p in out.iterdir()}, {'head_flame.obj', 'work'})
             self.assertEqual(digest(out / 'head_flame.obj'), before[CASE / 'head_flame.obj'][1])
-            self.assertEqual(digest(out / 'flame_fitting/stage1/stage_3/mesh_final.obj'), before[CASE / 'head_flame.obj'][1])
+            self.assertEqual(digest(out / 'work/flame_fitting/stage1/stage_3/mesh_final.obj'), before[CASE / 'head_flame.obj'][1])
             for name in ('cameras.bin', 'images.bin', 'points3D.bin'):
-                self.assertEqual(digest(out / 'sparse/0' / name), before[CASE / 'sparse' / name][1])
-            self.assertEqual(len(list((out / 'images').glob('*.jpg'))), 80)
+                self.assertEqual(digest(out / 'work/sparse/0' / name), before[CASE / 'sparse' / name][1])
+            self.assertEqual(len(list((out / 'work/images').glob('*.jpg'))), 80)
             args.output_path = str(CASE / 'must_not_be_written')
             with self.assertRaises(ValueError):
                 prepare.prepare_colmap_case(args)

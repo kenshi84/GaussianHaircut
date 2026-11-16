@@ -65,8 +65,10 @@ the initial Gaussian point cloud and must be nonempty.
 
 Outputs mirror the path below `datasets/`: this example writes everything to
 `output/synth/ct2hair/bangs/`. A case outside `datasets/` defaults to
-`output/<case_name>/`. Input files are never moved or edited. The output contains
-verbatim camera binaries in `sparse/0/` and a verbatim `head_flame.obj`.
+`output/<case_name>/`. Input files are never moved or edited. All intermediate
+data is stored under the output case's `work/` directory, including verbatim
+camera binaries in `work/sparse/0/`. The case root contains only `head_flame.obj`
+(copied verbatim), `10000_strands.data`, and `10000_strands.ply`, alongside `work/`.
 
 The synthetic runner generates masks from RGB, keeps every registered view,
 and skips camera reconstruction, camera optimization, and FLAME fitting.
@@ -78,16 +80,24 @@ Scene cropping only removes points. `scale.pickle` records the crop radius and
 center for the existing strand-thickness calculation; it does not transform the
 saved geometry.
 
-Final strands are in
-`curves_reconstruction/stage3/strands/10000_strands.pkl` (an `N x 100 x 3` array)
-and `10000_strands.ply` (the same samples flattened into a point cloud).
-The stage directories also contain checkpoints and camera metadata; the
-pipeline log is `logs/pipeline.log`. Blender video generation and GT metrics
-are not part of this runner.
+The final `.data` and `.ply` files are converted with `hairutil` (required on
+`PATH`) from the NumPy array in
+`work/curves_reconstruction/stage3/strands/10000_strands.pkl` (`N x 100 x 3`).
+An intermediate `.npy` is saved alongside the pickle; conversion preserves
+strand connectivity and coordinates with automatic fixes disabled.
+Checkpoints, camera metadata, and visualization exports also stay under `work/`;
+the pipeline log is `work/logs/pipeline.log`. Blender video generation and GT
+metrics are not part of this runner.
+
+To convert existing exported strands without rerunning reconstruction:
+
+```bash
+python src/postprocessing/export_final_strands.py --case_dir output/synth/ct2hair/bangs
+```
 
 The defaults are 30,000 Gaussian, 20,000 latent-strand, and 10,000 refinement
 iterations. Override them for a smoke test; its geometry is not a converged
-accuracy result:
+accuracy result. Strand filenames use the chosen refinement iteration number:
 
 ```bash
 DATA_PATH=datasets/synth/ct2hair/bangs \
@@ -111,6 +121,8 @@ Validate input cases without generating reconstruction files using
 Run regression checks with `python -B tests/test_synthetic.py` in the
 `gaussian_splatting_hair` environment. They check all ten local ct2hair cases,
 camera projection and freezing, JPG auxiliary-file paths, and input preservation.
+Run `python -B tests/test_export_final_strands.py` to check the final output layout,
+repeated exports, and coordinate/connectivity preservation through both hairutil formats.
 
 ## License
 
